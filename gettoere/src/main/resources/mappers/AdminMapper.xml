@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.gettoere.mapper.AdminMapper">
+
+<!-- <select id="list" resultType = "com.gettoere.vo.AdminMemberVO"></select> -->
+
+
+<!-- 최고관리자 회원리스트. jun. 17.11.09
+<select id="memberList" resultType = "com.gettoere.vo.AdminMemberVO">
+<![CDATA[
+	select
+		m.mNo, m.id id, m.name as mname, m.nickname, l.name as lname, m.createDate
+	from
+		member m, listboard l
+	where l.lNo=m.lNoManager
+	and m.mNo > 0
+	order by m.mNo desc, m.createDate
+]]>
+</select>-->
+
+<!-- 최고관리자 회원리스트 페이징. jun. 17.11.13 -->
+<select id="memberList" resultType = "com.gettoere.vo.AdminMemberVO">
+<![CDATA[
+	select a.*, @seq := @seq+1 AS seq
+	from(select
+			m.mNo, m.id, m.name as mname, m.nickname, l.name as lname, m.status, m.createDate
+		from
+			member m LEFT OUTER JOIN listboard l
+		on l.lNo=m.lNoManager
+		where m.mNo > 0
+]]>
+	<include refid = "memberSearch"></include>
+<![CDATA[
+		)a, (SELECT @seq := 0) b
+	order by SEQ desc
+	limit #{pageStart}, #{perPageNum}
+]]>
+</select>
+
+<!-- 최고관리자 금지어리스트. jun. 17.11.13 -->
+<select id="tabooWordList" resultType = "com.gettoere.vo.AdminTabooWordVO">
+<![CDATA[
+	select @seq := @seq+1 as seq, tNo, word
+	from tabooword, (SELECT @seq := 0) seq
+]]>
+<!-- 금지어리스트 검색기능. jun. 17.11.15 -->
+ <if test="keyword != null" > 
+     where word like CONCAT('%', #{keyword}, '%')
+ </if>
+<![CDATA[	
+	order by seq desc
+	limit #{pageStart}, #{perPageNum}
+]]>
+</select>
+
+<!-- 회원리스트,블랙리스트 검색기능. jun. 17.11.14 -->
+<sql id = "memberSearch">
+ <if test="searchType != null" > 
+   <if test="searchType == 'i'.toString()">
+     and id like CONCAT('%', #{keyword}, '%')
+   </if>
+   <if test="searchType == 'n'.toString()">
+     and m.name like CONCAT('%', #{keyword}, '%')
+   </if>
+   <if test="searchType == 'nn'.toString()">
+     and nickname like CONCAT('%', #{keyword}, '%')
+   </if>     
+   <if test="searchType == 'b'.toString()">
+     and l.name like CONCAT('%', #{keyword}, '%')
+   </if>
+ </if>
+</sql>
+<!-- 최고관리자 블랙리스트. jun. 17.11.10 -->
+<!-- **** 게시판관리자 블랙리스트로 판단 **** -->
+<!-- <select id="boardblackList" resultType = "com.gettoere.vo.AdminBoardVO">
+	select m.id, m.name, m.nickname, o.reason, p.createDate, m.createDate
+	from member m, pickoutlist p, outlist o
+	where p.mNo=m.mNo
+	and p.oNo=o.oNo
+	order by p.createDate desc
+</select> -->
+
+<!-- 최고관리자 블랙리스트 페이징. jun. 17.11.13 -->
+<select id="blackList" resultType = "com.gettoere.vo.AdminBlackVO">
+<![CDATA[
+	select @seq := @seq+1 as seq, m.mNo, m.id, m.name, m.nickname, o.reason, p.createDate as bCreateDate, m.createDate as mCreateDate
+	from member m, pickoutlist p, outlist o, (SELECT @seq := 0) seq
+	where p.mNo=m.mNo
+	and p.oNo=o.oNo
+	and m.status=1
+	and p.lNo=0
+]]>
+	<include refid = "memberSearch"></include>
+<![CDATA[
+	order by seq desc
+	limit #{pageStart}, #{perPageNum}
+]]>
+</select>
+
+<!-- 최고관리자 게시판리스트. jun. 17.11.10 -->
+<!-- 특이사항 3번째 컬럼은 관리자닉네임만 가져옴 -->
+<select id="boardList" resultType="com.gettoere.vo.AdminBoardVO">
+<![CDATA[
+	select a.*, @seq := @seq+1 as seq
+	from(select b.lNo, b.name, b.cnt, a.nickname, b.createDate, b.status, b.message
+		 from (select l.lNo, m.nickname
+				from listboard l, member m
+				where l.lNo=m.lNoManager) a right outer join
+			 (select l.lNo, l.name, count(b.lNo) as cnt, l.createDate, l.status, l.message
+				from listboard l LEFT OUTER JOIN board b
+				on b.lNo=l.lNo
+				group by l.lNo) b
+		 on a.lNo=b.lNo
+		 order by status, cnt desc, createDate) a, (SELECT @seq := 0) seq
+]]>
+<!-- 게시판리스트 검색기능. jun. 17.11.14 -->
+ <if test="keyword != null" > 
+     where name like CONCAT('%', #{keyword}, '%')
+ </if>
+<![CDATA[
+	limit #{pageStart}, #{perPageNum}
+]]>
+</select>
+
+
+<!-- 회원테이블 페이징 count. jun. 17.11.13 -->
+<select id="memberCountPaging" resultType="int">
+	select count(mNo)
+	from member
+	where mNo > 0
+</select>
+
+<!-- 게시판테이블 페이징 count. jun. 17.11.13 -->
+<select id="boardCountPaging" resultType="int">
+	select count(lNo)
+	from listboard
+</select>
+
+<!-- 최고관리자 블랙리스트 페이징 count. jun. 17.11.13 -->
+<select id="blackCountPaging" resultType="int">
+	select count(a.id)
+	from(select m.id, m.name, m.nickname, o.reason, p.createDate as bCreateDate, m.createDate as mCreateDate
+		from member m, pickoutlist p, outlist o
+		where p.mNo=m.mNo
+		and p.oNo=o.oNo
+		and p.lNo=0
+		order by bCreateDate desc) a
+</select>
+
+<!-- 최고관리자 금지어리스트 페이징 count. jun. 17.11.13 -->
+<select id="tabooWordCountPaging" resultType = "int">
+	select count(tNo)
+	from tabooword
+</select>
+	 
+<!-- 최고관리자 금지어삭제. jun. 17.11.15 -->
+<delete id="tabooWordDelete" parameterType="java.lang.String">
+	delete from tabooWord
+ 	where tNo IN ( ${value} )
+</delete>
+
+<!-- 최고관리자 금지어생성. jun. 17.11.16 -->
+<insert id="tabooWordInsert" parameterType="java.lang.String">
+	insert into tabooword (word) values ( #{value} );
+</insert>
+
+<!-- 최고관리자 게시판 정지. jun. 17.11.23 -->
+<update id="boardStop" parameterType="java.lang.String">
+	update listboard set status=2 where lNo in ( ${value} )
+</update>
+<!-- 최고관리자 게시판 정지 해제시 이름 비교. jun. 17.12.05 -->
+<select id="chkBoardName" resultType="int">
+select count(*)
+from listboard l, (select name from listboard where lNo = ${value} ) lname
+where lname.name = l.name
+and l.status = 0
+</select>
+<!-- 최고관리자 게시판 해제. jun. 17.11.30 -->
+<update id="boardStart" parameterType="java.lang.String">
+<![CDATA[
+	update listboard set status=0, message="", lastDate=now() where lNo in ( ${value} )
+]]>
+</update>
+
+
+<!-- 블랙리스트 면제기능. jun. 17.11.16 -->
+<update id="memberFree" parameterType="java.lang.String">
+	UPDATE member SET status ='0' WHERE mNo in ( ${value} )
+</update>
+<delete id="memberFreePickoutlist" parameterType="java.lang.String">
+	delete from pickoutlist
+	where lNo=#{lNo}
+	and mNo IN ( ${key} )
+</delete>
+
+<!-- 회원 블랙리스트 추가기능. jun. 17.11.16 -->
+<!-- 트랜잭션 추가. jun. 17.11.20 -->
+<!-- 관리자 블랙리스트 추가. jun, 17.11.24 -->
+<update id="blackListMemberUpdate">
+	UPDATE member SET status='1' WHERE mNo in ( #{keyWord} )
+</update>
+<insert id="outlistInsert">
+	insert into outlist (reason) values ( #{value} )
+</insert>
+<insert id="blackListPickoutlistUpdate">
+	insert into pickoutlist ( lNo, mNo, oNo )
+	values (#{lNo}, #{keyWord}, (SELECT oNo FROM outlist order by oNo desc limit 1));
+</insert>
+
+<!-- 게시판리스트 메시지 추가. jun. 17.11.23 -->
+<update id="boardMsg" parameterType="HashMap">
+	update listboard set message="${msg}" where lNo in (${key})
+</update>
+
+</mapper>

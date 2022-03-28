@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+  
+<mapper namespace="com.gettoere.mapper.JoinMapper">
+<!-- temp 컬럼 추가 ktg 17.11.27 -->
+<insert id = "create">
+insert into member (id,pw,name,nickname,phone,email,temp) values
+		(#{id}, #{pw}, #{name}, #{nickname}, #{phone}, #{email}, #{temp})
+</insert>
+
+<select id = "idCheck" resultType = "int">
+SELECT 
+		count(id)
+FROM 
+		member 
+WHERE 
+		id=#{id};
+</select>
+
+<select id = "nicknameCheck" resultType = "int">
+SELECT 
+		count(nickname)
+FROM 
+		member 
+WHERE 
+		nickname=#{nickname};
+</select>
+
+<!-- 핸드폰 중복 체크 ktg 17.11.30 -->
+<select id = "phoneCheck" resultType = "int">
+SELECT 
+		count(phone)
+FROM 
+		member 
+WHERE 
+		phone=#{phone};
+</select>
+
+<select id ="emailCheck" resultType ="int">
+select
+		count(email)
+from  	
+		member
+where
+		email=#{email};
+</select>
+<select id = "idFind" resultType ="String">
+select
+		id
+from  	
+		member
+where
+		email=#{email}
+		and
+		name=#{name};
+</select>
+
+<select id = "pwFind" resultType = "String">
+select
+		id,
+		email
+from  	
+		member
+where
+		email=#{email}
+		and
+		id=#{id}
+</select>
+
+<!-- 비밀번호 찾기 이메일 인증 ktg 17.11.27 -->
+<select id = "pwFindCheck" resultType= "int">
+select
+	count(*)
+from
+	member
+where
+	email=#{email}
+and
+	id=#{id}
+</select>
+<!-- 새 비밀번호 설정 userCheck ktg 17.11.27 -->
+<select id = "userCheck" resultType= "int">
+select
+	count(*)
+from
+	member
+where
+	temp=#{temp}
+and
+	id=#{id}
+</select>
+
+<!-- 새비밀번호 저장 ktg 17.11.27 -->
+<update id="newPwUp">
+update 
+	member
+set
+	pw = #{pw}
+where
+	id=#{id}
+and
+	temp = #{temp}
+</update>
+<!-- 새비밀번호 저장 후 Temp에 저장 ktg 17.11.27 -->
+<update id="newTempUp">
+update 
+	member
+set
+    temp = #{temp}
+where
+	id=#{id}
+</update>
+<!-- 랜덤값 Temp에 저장 ktg 17.11.27 -->
+<update id="tempUp">
+update 
+	member
+set
+    temp = #{temp}
+where
+	email=#{email}
+and
+	id=#{id}
+</update>
+
+
+<update id="Update">
+update 
+	member
+set
+    nickname = #{nickname},
+    email = #{email},
+    phone = #{phone},
+    pw = #{pw}
+    
+where
+	id=#{id}
+</update>
+
+<!-- 개인정보수정 이메일중복체크 추가 kyo 17.12.01 -->
+<select id ="emailUpCheck" resultType ="int">
+<![CDATA[
+select
+		count(email)
+from  	
+		member
+where
+		email = #{email}
+and
+		mNo <> #{mNo}
+]]>
+</select>
+<!-- 개인정보수정 핸드폰중복체크 추가 kyo 17.12.01 -->
+<select id ="phoneUpCheck" resultType ="int">
+<![CDATA[
+select
+		count(phone)
+from  	
+		member
+where
+		phone = #{phone}
+and
+		mNo <> #{mNo}
+]]>
+</select>
+<!-- 개인정보수정 닉네임중복체크 추가 kyo 17.12.01 -->
+<select id ="nicknameUpCheck" resultType ="int">
+<![CDATA[
+select
+		count(nickname)
+from  	
+		member
+where
+		nickname = #{nickname}
+and
+		mNo <> #{mNo}
+]]>
+</select>
+
+
+
+
+</mapper>

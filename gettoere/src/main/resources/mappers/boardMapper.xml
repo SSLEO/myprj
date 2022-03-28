@@ -1,0 +1,754 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+  
+<mapper namespace="com.gettoere.mapper.BoardMapper">
+<insert id = "create" useGeneratedKeys="true" keyProperty="bNo">
+	insert into board(lNo, mNo, title, category, contents)
+  		values(#{lNo}, #{mNo}, #{title}, #{category}, #{contents})
+</insert>
+
+<insert id="createAttach">
+	insert into attach(bNo, fileName, extension, path, size)
+		values(#{bNo}, #{fileName}, #{extension}, #{path}, #{size})
+</insert>
+
+<insert id="updateAttach">
+	update attach
+	set
+		fileName = #{fileName},
+		extension = #{extension}, 
+	    path = #{path},
+	    size = #{size}
+	where
+		aNo = #{aNo}
+</insert>
+
+<select id="searchBoardName" resultType="BoardVO">
+	select lNo, name from listboard where name like CONCAT(#{title},'%')
+	union
+	select lNo, name from listboard where name not like CONCAT(#{title},'%') and name like CONCAT('%',#{title},'%')
+</select>
+
+<select id = "read" resultType = "com.gettoere.vo.BoardVO">
+select 
+	b.mNo,
+	l.name, 
+	b.bNo, 
+	b.title, 
+	b.category,
+	b.contents, 
+	b.createDate, 
+	ifnull(m.nickname, '(탈퇴한 회원)') as nickname,
+	b.replyCnt,
+	b.bestCnt,
+	b.viewCnt,
+	b.worstCnt
+from 
+	board b
+    left join listboard l on b.lNo = l.lNo
+    left join member m on b.mNo = m.mNo
+where
+	b.bNo = #{bNo}
+</select>
+
+<select id="readListBoard" resultType="BoardVO">
+select 
+	lNo,
+    name,
+    createDate,
+    lastDate,
+    message,
+    imgUrl,
+    status,
+    mNo,
+    level
+from
+	listBoard
+where
+	lNo = #{lNo}
+</select>
+
+<select id="readAttach" resultType="AttachVO">
+select
+	aNo,
+	bNo,
+	fileName,
+	extension, 
+	path,
+	size,
+	createDate
+from 
+	attach 
+where 
+	bNo = #{bNo}
+</select>
+
+<update id="update">
+	update 
+		board
+	set
+		title = #{title},
+	    contents = #{contents},
+	    category = #{category}
+	where
+		bNo = #{bNo}
+		and
+	    lNo = #{lNo}
+	    and
+	    mNo = #{mNo}
+</update>
+
+<delete id = "delete">
+delete 
+from 
+	board
+where 
+	bNo = #{bNo}
+</delete>
+
+<!-- 댓글 갯수. lsy. 171117 -->
+<select id="replyCnt">
+select 
+	count(r.contents) 
+from
+	reply r, board b
+where
+	r.bNo = #{bNo}
+	and
+	r.bNo = b.bNo
+</select>
+
+<!--
+ <select id="listAll" resultType="com.gettoere.vo.BoardVO">
+<![CDATA[
+select 
+	bNo, 
+	lNo,
+	m.mNo,
+	category, 
+	title, 
+	contents, 
+	b.createDate as createDate, 
+	viewCnt,
+	bestCnt,
+	isBest,
+	nickname
+from 
+	member m,
+	board b 
+where 
+	m.mNo = b.mNo 
+	and b.bno>0
+order by 
+	b.bno desc, b.createDate desc
+]]>
+</select> -->
+
+<!-- 
+<select id = "listPage" resultType ="com.gettoere.vo.BoardVO">
+<![CDATA[
+select 
+	bNo, 
+	lNo,
+	m.mNo,
+	category, 
+	title, 
+	contents, 
+	b.createDate as createDate, 
+	viewCnt,
+	bestCnt,
+	isBest,
+	nickname
+from 
+	member m,
+	board b 
+where 
+	m.mNo = b.mNo 
+	and b.bno>0
+order by 
+	b.bno desc, b.createDate desc
+limit #{page}, 10
+]]>
+</select>
+ -->
+ 
+<!-- 게시판 검색기능 밑 목록페이징처리 kyo 17-11-10  -->
+<sql id="search">
+ <if test="searchType != null" > 
+   <if test="searchType == 't'.toString()">
+     and title like CONCAT('%', #{keyword}, '%')
+   </if>
+   <if test="searchType == 'c'.toString()">
+     and contents like CONCAT('%', #{keyword}, '%')
+   </if>
+   <if test="searchType == 'w'.toString()">
+     and nickname like CONCAT('%', #{keyword}, '%')
+   </if>     
+   <if test="searchType == 'tc'.toString()">
+     and ( title like CONCAT('%', #{keyword}, '%') OR contents like CONCAT('%', #{keyword}, '%'))
+   </if>        
+   <if test="searchType == 'cw'.toString()">
+     and ( contents like CONCAT('%', #{keyword}, '%') OR nickname like CONCAT('%', #{keyword}, '%'))
+   </if>        
+   <if test="searchType == 'tcw'.toString()">
+     and (   title like CONCAT('%', #{keyword}, '%') 
+           OR 
+             contents like CONCAT('%', #{keyword}, '%') 
+           OR 
+             nickname like CONCAT('%', #{keyword}, '%'))
+   </if>              
+ </if>  
+</sql>
+<!-- 리스트게시판 검색기능 kyo 17.11.22 -->
+<sql id="listSearch">
+ <if test="searchType != null" > 
+   <if test="searchType == 't'.toString()">
+     and l.name like CONCAT('%', #{keyword}, '%')
+   </if>
+   <if test="searchType == 'w'.toString()">
+     and m.nickname like CONCAT('%', #{keyword}, '%')
+   </if>                             
+ </if>  
+</sql>
+<!-- 게시판 공지글 kyo 17.11.22 -->
+<select id = "noticeList" resultType = "com.gettoere.vo.BoardVO">
+select 
+	bNo, 
+	lNo,
+	m.mNo,
+	category, 
+	title, 
+	contents, 
+	b.createDate as createDate, 
+	viewCnt,
+	bestCnt,
+	isBest,
+	nickname,
+	replyCnt
+from 
+	member m,
+	board b 
+where 
+	m.mNo = b.mNo 
+	and b.bNo>0
+	and b.lNo=#{lNo}
+	and category = 1
+order by 
+	b.bNo desc, b.createDate desc
+</select>
+
+<!-- 게시판 검색기능 밑 목록페이징처리 kyo 17-11-10  -->
+<select id = "listCriteria" resultType ="com.gettoere.vo.BoardVO">
+<![CDATA[
+select a.*, @seq := @seq+1 as seq
+from(
+select 
+	bNo, 
+	lNo,
+	m.mNo,
+	category, 
+	title, 
+	contents, 
+	b.createDate as createDate, 
+	viewCnt,
+	bestCnt,
+	isBest,
+	nickname,
+	replyCnt
+from 
+	member m,
+	board b 
+where 
+	m.mNo = b.mNo 
+	and b.bNo>0
+	and b.lNo=#{lNo}
+	and category = 0
+]]>
+<include refid="search"></include>	
+<![CDATA[
+order by 
+	b.bNo, b.createDate) a, (SELECT @seq := 0) seq
+order by seq desc
+limit #{pageStart}, #{perPageNum}
+]]>
+</select>
+
+<!-- 게시판 검색기능 밑 목록페이징처리 kyo 17-11-10  -->
+<select id = "countPaging" resultType = "int">
+<![CDATA[
+select 
+	count(bNo)
+from 
+	member m,
+	board b 
+where 
+	m.mNo = b.mNo 
+	and b.bNo>0
+	and b.lNo=#{lNo}
+]]>
+<include refid="search"></include>
+</select>
+
+<!-- 리스트게시판 검색기능 및 페이징 처리 kyo 17.11.22 __ 수정(). jun. 17.12.05 -->
+<select id = "listBoardCriteria" resultType ="com.gettoere.vo.AdminBoardVO">
+<![CDATA[
+select 
+	result.*, 
+	@seq := @seq+1 as seq
+from(
+	select 
+		a.*, 
+		b.cnt
+	from (
+		select 
+			l.lNo, 
+			m.nickname, 
+			l.createDate, 
+			l.name
+		from 
+			listboard l, 
+			member m
+		where 
+			l.lNo=m.lNoManager
+		and
+			(m.grade = 2 or m.grade = 3)
+		) a,
+		(
+		select 
+			l.lNo, 
+			count(b.lNo) as cnt
+		from 
+			listboard l 
+			LEFT OUTER JOIN board b on b.lNo=l.lNo
+		where 
+			l.status = 0
+		group by l.lNo
+		) b
+	where 
+		a.lNo=b.lNo
+]]>
+		<if test="searchType != null" > 
+			<if test="searchType == 't'.toString()">
+				and a.name like CONCAT('%', #{keyword}, '%')
+			</if>
+			<if test="searchType == 'w'.toString()">
+				and a.nickname like CONCAT('%', #{keyword}, '%')
+			</if>                             
+		</if> 
+<![CDATA[		
+	order by a.createDate
+	) result, (SELECT @seq := 0) seq
+order by seq desc
+limit #{pageStart}, #{perPageNum}
+]]>
+</select>
+
+<!-- 리스트게시판 검색기능 밑 목록페이징 처리 kyo 17.11.22 -->
+<select id = "listCountPaging" resultType = "int">
+<![CDATA[
+select 
+	count(lNo)
+from 
+	listboard l,
+	member m
+where
+	m.lNoManager=l.lNo
+and
+	l.status = 0
+]]>
+<include refid="listSearch"></include>
+</select>
+
+<!-- 내가 쓴글 검색기능 밑 목록페이징처리. ssh. 171201 -->
+<sql id="myListSearch">
+ <if test="searchType != null" > 
+   <if test="searchType == 'n'.toString()">
+     and l.name like CONCAT('%', #{keyword}, '%')
+   </if>
+   <if test="searchType == 't'.toString()">
+     and b.title like CONCAT('%', #{keyword}, '%')
+   </if>
+   <if test="searchType == 'c'.toString()">
+     and b.contents like CONCAT('%', #{keyword}, '%')
+   </if>    
+   <if test="searchType == 'nt'.toString()">
+     and ( l.name like CONCAT('%', #{keyword}, '%') OR b.title like CONCAT('%', #{keyword}, '%'))
+   </if>
+   <if test="searchType == 'tc'.toString()">
+     and ( b.title like CONCAT('%', #{keyword}, '%') OR b.contents like CONCAT('%', #{keyword}, '%'))
+   </if>
+   <if test="searchType == 'ntc'.toString()">
+     and (   l.name like CONCAT('%', #{keyword}, '%') 
+           OR 
+             b.title like CONCAT('%', #{keyword}, '%') 
+           OR 
+             b.contents like CONCAT('%', #{keyword}, '%'))
+   </if>           
+ </if>  
+</sql>
+
+<!-- 내가 쓴글 목록 불러오기. ssh. 171201 -->
+<select id="myList" resultType ="BoardVO">
+	<![CDATA[
+	select 
+		A.*,
+	    @seq := @seq+1 as seq
+	from
+	(
+		select
+			l.lNo,
+	        l.name,
+	        l.status,
+	        b.bNo,
+	        b.title,
+	        b.bestCnt,
+	        b.replyCnt,
+	        b.viewCnt,
+	        b.createDate
+		from board b
+			join listboard l on b.lNo = l.lNo
+		where
+			b.mNo = #{mNo}
+	]]>
+	<include refid="myListSearch"></include>	
+	<![CDATA[
+		order by
+			b.createDate
+	) A, (SELECT @seq := 0) seq
+	order by
+		seq desc
+	limit #{pageStart}, #{perPageNum}
+	]]>
+</select>
+
+<!-- 내가 쓴글 목록 글 수. ssh. 171201 -->
+<select id="myListCount" resultType = "int">
+	<![CDATA[
+	select
+		count(*)
+	from board b
+		join listboard l on b.lNo = l.lNo
+	where
+		b.mNo = #{mNo}
+	]]>
+	<include refid="myListSearch"></include>	
+</select>
+
+<!-- 내가 쓴 댓글 검색기능 밑 목록페이징처리. ssh. 171201 -->
+<sql id="myReplySearch">
+ <if test="searchType != null" > 
+   <if test="searchType == 'n'.toString()">
+     and l.name like CONCAT('%', #{keyword}, '%')
+   </if>
+   <if test="searchType == 't'.toString()">
+     and b.title like CONCAT('%', #{keyword}, '%')
+   </if>
+   <if test="searchType == 'c'.toString()">
+     and r.contents like CONCAT('%', #{keyword}, '%')
+   </if>  
+   <if test="searchType == 'nt'.toString()">
+     and ( l.name like CONCAT('%', #{keyword}, '%') OR b.title like CONCAT('%', #{keyword}, '%'))
+   </if>
+   <if test="searchType == 'tc'.toString()">
+     and ( b.title like CONCAT('%', #{keyword}, '%') OR r.contents like CONCAT('%', #{keyword}, '%'))
+   </if>
+   <if test="searchType == 'ntc'.toString()">
+     and (   l.name like CONCAT('%', #{keyword}, '%') 
+           OR 
+             b.title like CONCAT('%', #{keyword}, '%') 
+           OR 
+             r.contents like CONCAT('%', #{keyword}, '%'))
+   </if>           
+ </if>  
+</sql>
+
+<!-- 내가 쓴 댓글 목록 불러오기. ssh. 171201 -->
+<select id="myReply" resultType ="BoardVO">
+	<![CDATA[
+	select 
+		A.*,
+	    @seq := @seq+1 as seq
+	from
+	(
+		select
+			l.lNo,
+			l.name,
+			l.status,
+			b.bNo,
+			b.title,
+			b.replyCnt,
+			r.contents,
+			r.createDate
+		from 
+			reply r
+			join board b on r.bNo = b.bNo
+			join listboard l on b.lNo = l.lNo
+		where
+			r.mNo = #{mNo}
+	]]>
+	<include refid="myReplySearch"></include>	
+	<![CDATA[
+		order by
+			r.createDate
+	) A, (SELECT @seq := 0) seq
+	order by
+		seq desc
+	limit #{pageStart}, #{perPageNum}
+	]]>
+</select>
+
+<!-- 내가 쓴 댓글 목록 글 수. ssh. 171201 -->
+<select id="myReplyCount" resultType = "int">
+	<![CDATA[
+	select
+		count(*)
+	from 
+		reply r
+		join board b on r.bNo = b.bNo
+		join listboard l on b.lNo = l.lNo
+	where
+		r.mNo = #{mNo}
+	]]>
+	<include refid="myReplySearch"></include>	
+</select>
+
+<!-- 최신 글 검색기능 밑 목록페이징처리. ssh. 17-12-04  -->
+<sql id="recentSearch">
+	<if test="searchType != null" > 
+		<if test="searchType == 'n'.toString()">
+			and l.name like CONCAT('%', #{keyword}, '%')
+		</if>
+		<if test="searchType == 't'.toString()">
+			and b.title like CONCAT('%', #{keyword}, '%')
+		</if>
+		<if test="searchType == 'c'.toString()">
+			and b.contents like CONCAT('%', #{keyword}, '%')
+		</if>
+		<if test="searchType == 'w'.toString()">
+			and m.nickname like CONCAT('%', #{keyword}, '%')
+		</if>     
+		<if test="searchType == 'tc'.toString()">
+			and ( b.title like CONCAT('%', #{keyword}, '%') OR b.contents like CONCAT('%', #{keyword}, '%'))
+		</if>        
+		<if test="searchType == 'cw'.toString()">
+			and ( b.contents like CONCAT('%', #{keyword}, '%') OR m.nickname like CONCAT('%', #{keyword}, '%'))
+		</if>        
+		<if test="searchType == 'ntcw'.toString()">
+			and (   l.name like CONCAT('%', #{keyword}, '%') 
+			      OR 
+					b.title like CONCAT('%', #{keyword}, '%') 
+			      OR 
+			        b.contents like CONCAT('%', #{keyword}, '%') 
+			      OR 
+			        m.nickname like CONCAT('%', #{keyword}, '%'))
+		</if>              
+	</if>  
+</sql>
+
+<!-- 최신 글 목록 불러오기. ssh. 171204 -->
+<select id="recentList" resultType ="BoardVO">
+	<![CDATA[
+	select 
+		A.*,
+	    @seq := @seq+1 as seq
+	from
+	(
+		select
+			l.lNo,
+	        l.name,
+	        l.status,
+	        b.bNo,
+	        b.title,
+	        m.nickname,
+	        b.bestCnt,
+	        b.replyCnt,
+	        b.viewCnt,
+	        b.createDate
+		from board b
+			join listboard l on b.lNo = l.lNo
+			join member m on b.mNo = m.mNo
+		where
+			1=1
+	]]>
+	<include refid="recentSearch"></include>	
+	<![CDATA[
+		order by
+			b.createDate
+	) A, (SELECT @seq := 0) seq
+	order by
+		seq desc
+	limit #{pageStart}, #{perPageNum}
+	]]>
+</select>
+
+<!-- 최신 글 목록 글 수. ssh. 171204 -->
+<select id="recentListCount" resultType = "int">
+	<![CDATA[
+	select
+		count(*)
+	from board b
+		join listboard l on b.lNo = l.lNo
+		join member m on b.mNo = m.mNo
+	where
+		1=1
+	]]>
+	<include refid="recentSearch"></include>	
+</select>
+
+<!-- 메인화면 인기글 목록 불러오기 ktg 17.11.13 -->
+<select id="bestPosts" resultType ="com.gettoere.vo.BoardVO">
+SELECT 
+	* 
+FROM 
+	board
+WHERE 
+	isBest = 1 
+and 
+	<![CDATA[ 
+	TO_DAYS(NOW()) - TO_DAYS(createDate) <= 14 
+	]]> 
+order by 
+	createDate desc 
+LIMIT 10
+</select>
+
+<!-- 메인화면 인기게시판 목록 불러오기 ktg 17.11.14 --> 
+<select id="bestBoards" resultType ="com.gettoere.vo.BoardVO">
+select 
+	BestListBoard.lNo as lNo,
+    name,
+    bNoCnt,
+    bestCnt,
+    boardCnt
+from 
+	(select 
+		l.lNo as lNo,
+		l.name as name,
+		count(b.bNo) as bNoCnt,
+        b.createDate
+	from 
+		board b, listboard l
+	where 
+		l.lNo = b.lNo
+	and 
+		<![CDATA[ 
+		TO_DAYS(NOW()) - TO_DAYS(b.createDate) <= 14
+		]]>
+	group by 
+		l.lNo, l.name) as BestListBoard,
+        
+	(select 
+		l.lNo as lNo,
+		count(b.isBest) as bestCnt
+	from 
+		board b, listboard l
+	where
+		l.lNo = b.lNo
+	and 
+		b.isBest = 1
+	group by 
+		l.lNo, l.name) as BestBoard,
+	
+	(select
+		count(b.bNo) as boardCnt 
+	from 
+		board b, listboard l
+	where
+		l.lNo = b.lNo 
+	group by 
+		l.lNo, l.name) as CntBoard
+where 
+	bNoCnt > 3
+and 
+	bestCnt > 1
+and 
+	BestListBoard.lNo = BestBoard.lNo
+group by
+	BestListBoard.lno, name, bNoCnt, bestCnt
+LIMIT 10
+</select>
+
+<!-- 메인화면 죽어가는게시판 목록 불러오기 ktg 17.11.15 --> 
+<select id="dyingBoards" resultType ="com.gettoere.vo.BoardVO">
+<![CDATA[
+select 
+	lNo, 
+    name, 
+    isDying 
+from 
+	listboard 
+where 
+	isDying = 1
+and
+	status = 0 
+LIMIT 6
+]]> 
+</select>
+
+<!-- 헤더부분 새로운 게시판 목록 슬라이더 ktg17.11.15 -->
+<select id="newBoardSlider" resultType ="com.gettoere.vo.BoardVO">
+SELECT 
+	* 
+FROM 
+	listboard
+WHERE 
+	<![CDATA[ 
+	TO_DAYS(NOW()) - TO_DAYS(createDate) <= 14
+	]]> 
+AND
+	status = 0
+order by 
+	createDate desc 
+LIMIT 10
+</select>
+
+<!-- 추천 비추천 카운트처리. lsy. 171121 -->
+<update id="upBestCnt">
+update 
+	board
+set
+	bestCnt = bestCnt + 1
+where
+	bNo = #{bNo}
+</update>
+
+<update id="upWorstCnt">
+update 
+	board
+set
+	worstCnt = worstCnt + 1
+where
+	bNo = #{bNo}
+</update>
+
+<insert id="bestWhoBest">
+insert into whoBest(bNo, mNo, bestOrWorst)
+  		values(#{bNo}, #{mNo}, 0)
+</insert>
+
+<insert id="worstWhoBest">
+insert into whoBest(bNo, mNo, bestOrWorst)
+  		values(#{bNo}, #{mNo}, 1)
+</insert>
+
+<select id="upDownCheck" resultType="int">
+select 
+	count(*)
+from whobest
+where 
+	bNo = #{bNo}
+    and
+    mNo = #{mNo}
+</select>
+
+<update id ="updateViewCnt">
+update 
+	board
+set
+	viewCnt = viewCnt + 1
+where
+	bNo = #{bNo}
+</update>
+</mapper>

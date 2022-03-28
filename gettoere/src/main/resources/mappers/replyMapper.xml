@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+  
+<mapper namespace="com.gettoere.mapper.ReplyMapper">
+
+<insert id="create">
+insert into reply (bNo, mNo, contents)
+values (#{bNo},#{mNo},#{contents})
+</insert>
+
+<update id="updReplyCnt">
+update
+	board
+set
+	replyCnt = replyCnt + 1
+where 
+	bNo = #{bNo}
+</update>
+
+<update id="updReplyMinusCnt">
+update
+	board
+set
+	replyCnt = replyCnt - 1
+where 
+	bNo = #{bNo}
+</update>
+
+<update id="update">
+update 
+	reply
+set 
+	contents = #{contents}, createDate = now()
+where 
+	rNo = #{rNo};
+	
+</update>
+
+<delete id="delete">
+delete 
+from 
+	reply 
+where 
+	rNo = #{rNo}
+</delete>
+
+<select id="listPage" resultType="ReplyVO">
+select 
+   l.lNo,
+   b.bno,
+   r.rNo, 
+   m.nickname, 
+   r.contents, 
+   r.createDate
+from 
+   listboard l,
+   board b, 
+   reply r, 
+   member m 
+where 
+	b.bno = r.bNo 
+	and 
+	m.mNo = r.mNo 
+	and 
+	l.lNo = b.lNo 
+	and 
+	r.bNo = #{bNo}
+order by 
+	rNo desc
+limit #{cri.pageStart}, #{cri.perPageNum}
+</select>
+
+<select id="count" resultType="int">
+select count(bNo) from reply where bNo = #{bNo}
+</select>
+</mapper>

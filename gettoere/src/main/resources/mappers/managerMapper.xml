@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.gettoere.mapper.ManagerMapper">
+	<!-- board -->
+
+	<select id="readBoard" resultType="ManagerVO">
+		select 
+			name, 
+			imgUrl,
+			mNo
+		from
+			ListBoard
+		where
+			lNo = #{lNoManager}
+		and
+			status = 0
+	</select>
+
+	<update id="updateBoard">
+		update
+			ListBoard
+		set
+			imgUrl = #{imgUrl}, 
+			name = #{name}
+		where
+			lNo = #{lNo}
+	</update>
+
+	<insert id="createBoard" useGeneratedKeys="true" keyProperty="lNo">
+		insert into
+			ListBoard (mNo, name, imgUrl)
+		values
+			(#{mNo}, #{name}, #{imgUrl})
+
+	</insert>
+
+	<update id="updateMember">
+		update
+			member
+		set
+			grade = 2,
+			lNoManager = #{lNo}
+		where
+			mNo = #{mNo}
+	</update>
+
+	<update id="delBoard">
+		update
+			ListBoard
+		set
+			status = 1
+		where
+			lNo = #{lNo}
+	</update>
+	
+	<update id="deleteMemBoard">
+		update
+			Member
+		set
+			grade = 0,
+			lNoManager = 0
+		where
+			lNoManager = #{lNo}
+	</update>
+	
+	<select id="chkBoardName" resultType="int">
+		select
+			count(*)
+		from
+			ListBoard
+		where
+			NOT mNo = #{mNo}
+		and
+			name = #{name}
+		and
+			status = 0
+	</select>
+
+
+	<!-- contents -->
+
+
+
+
+	<!-- manager -->
+	<update id="downManager">
+		update 
+			Member
+		set 
+			grade = 1
+		where 
+			lNoManager = ${lNoManager}
+	</update>
+	<update id="upManager">
+		update 
+			Member
+		set 
+			grade = 2
+		where 
+			mNo = #{mNo}	
+	</update>
+	<!-- listBoard의 mNo 수정. jun. 17.12.05 -->
+	<update id="upManagerListBoard">
+		update
+			listBoard
+		set
+			mNo = #{mNo}
+		where
+			lNo =  (select lNoManager from member where mNo = #{mNo})
+	</update>
+
+	<select id="listManager" resultType="ManagerVO">
+		select 
+			mNo,
+		    nickname,
+		    grade
+		from 
+			member
+		where 
+			lNoManager = #{lNo}
+	</select>
+	
+	<select id="findMember" resultType="ManagerVO">
+		select
+			A.mNo,
+		    A.nickname,
+		    A.grade,
+		    ifnull(B.name, '') as name
+		from member A
+		left join listboard B
+			on A.lNoManager = B.lNo
+		where 
+			A.nickname like CONCAT('%',#{nickname},'%')
+	</select>
+	
+	<update id="addManager">
+		update
+			member
+		set
+			grade = 1,
+			lNoManager = #{lNo}
+		where
+			grade = 0
+			and
+			mNo in ( ${mNos} )
+	</update>
+
+	<update id="delManager" parameterType="java.lang.String">
+		update 
+			member
+		set
+			lNoManager = 0,
+			grade = 0
+		where
+			mNo in ( ${value} )
+	</update>
+
+	<!-- List Member -->
+	<select id="listMember" resultType="com.gettoere.vo.MemberVO">
+		<![CDATA[
+			select 
+				nickname
+			from 
+				Member
+			where 
+				grade = 0
+			order by 
+				nickname
+		 ]]>
+	</select>
+
+
+	<!-- 매니저 게시판관리 테이블 페이징. jun. 17.11.22 -->
+	<select id="contentMan" resultType="com.gettoere.vo.ManagerVO">
+	<![CDATA[
+		select
+			@seq := @seq+1 as seq, b.bNo, b.title, m.nickname, b.createDate, b.viewCnt, b.bestCnt
+		from
+			board b, listboard l, member m, (SELECT @seq := 0) seq
+		where 
+			b.lNo = l.lNo
+		and 
+			m.mNo = b.mNo
+		and 
+			l.lNo = #{lNo}
+	]]>
+		<if test="searchType != null" >
+		   <if test="searchType == 't'.toString()">
+		     and b.title like CONCAT('%', #{keyword}, '%')
+		   </if>
+		   <if test="searchType == 'n'.toString()">
+		     and m.nickname like CONCAT('%', #{keyword}, '%')
+		   </if>
+		 </if>
+	<![CDATA[
+		order by 
+			seq desc
+		limit #{pageStart}, #{perPageNum}
+	]]>
+	</select>
+	<select id="contentCountPaging" resultType="int">
+		select 
+			count(b.bNo)
+		from 
+			board b, listboard l, member m
+		where 
+			b.lNo = l.lNo
+		and 
+			m.mNo = b.mNo
+		and 
+			l.lNo = #{lNo}
+	</select>
+
+	<!-- 게시판리스트 삭제기능. jun. 17.11.16 -->
+	<delete id="contentDelete" parameterType="java.lang.String">
+		delete from board where bNo in ( ${value} )
+	</delete>
+	
+	<!-- 매니저 블랙리스트 테이블 페이징. jun. 17.11.23 -->
+	<select id="outlistMan" resultType="com.gettoere.vo.AdminBlackVO">
+		select 
+			@seq := @seq+1 as seq, m.mNo, m.nickname, o.reason, p.createDate as bCreateDate
+		from 
+			pickoutlist p, member m, outlist o, (SELECT @seq := 0) seq
+		where 
+			p.mNo = m.mNo
+		and 
+			o.oNo = p.oNo
+		and 
+			p.lNo = #{lNo}
+	</select>
+	<select id="outlistCountPaging" resultType="int">
+		select 
+			count(*)
+		from 
+			pickoutlist
+		where 
+			lNo =  #{lNo}
+	</select>
+	
+	<!-- 매니저 - 회원리스트. jun. 17.11.24 -->
+	<select id="searchMember" resultType="AdminMemberVO">
+		select mNo, nickname, grade, lNoManager from member where nickname like CONCAT(#{nickname},'%') and grade != 3
+		union
+		select mNo, nickname, grade, lNoManager from member where nickname not like CONCAT(#{nickname},'%') and nickname like CONCAT('%',#{nickname},'%') and grade != 3
+	</select>
+	
+	<!-- 해당 게시판의 밴 되어 있는지 확인. ssh. 17.11.28 -->
+	<select id="checkBan" resultType="int">
+		select
+			count(*)
+		from
+			pickoutlist
+		where
+			lNo = #{lNo}
+			and
+			mNo = #{mNo}
+	</select>
+</mapper>
