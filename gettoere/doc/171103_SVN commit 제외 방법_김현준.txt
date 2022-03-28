@@ -1,0 +1,11 @@
+SVN commit 제외 방법
+
+http://misoboy.tistory.com/37
+
+1. 전역키워드 추가
+- 1. Window -> Prefernces -> Team -> lgnored Resources -> Add Pattern
+- 2. 제외할 파일 및 폴더 명에 대한 패턴을 기입
+
+	*/target/*
+	.class
+	.project
